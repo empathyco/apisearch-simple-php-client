@@ -1,9 +1,20 @@
 <?php
 
-require __DIR__ . '/apisearch-client.php';
+/*
+ * This file is part of the Apisearch Server
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ *
+ * Feel free to edit as you please, and have fun.
+ *
+ * @author Marc Morera <yuhu@mmoreram.com>
+ */
+
+require __DIR__.'/apisearch-client.php';
 
 /**
- * Asserts both values are equal
+ * Asserts both values are equal.
  *
  * @param $expected
  * @param $value
@@ -13,7 +24,7 @@ require __DIR__ . '/apisearch-client.php';
 function assertEquals($expected, $value)
 {
     if ($expected !== $value) {
-        throw new Exception(sprintf("Expected to get %d. Had %d",
+        throw new Exception(sprintf('Expected to get %d. Had %d',
             $expected,
             $value
         ));
@@ -40,10 +51,10 @@ assertEquals(0, $result['total_hits']);
 assertEquals(0, $result['total_items']);
 
 $client->putItem([
-    'uuid' => ['id' => "1", 'type' => 'element'],
+    'uuid' => ['id' => '1', 'type' => 'element'],
     'metadata' => ['m' => 'm1'],
     'indexed_metadata' => ['im' => 'im1'],
-    'searchable_metadata' => ['s' => 'nobita']
+    'searchable_metadata' => ['s' => 'nobita'],
 ]);
 $client->flush();
 sleep(1);
@@ -57,15 +68,15 @@ assertEquals(1, $result['total_hits']);
 assertEquals(1, $result['total_items']);
 
 $client->putItems([[
-    'uuid' => ['id' => "2", 'type' => 'element'],
+    'uuid' => ['id' => '2', 'type' => 'element'],
     'metadata' => ['m' => 'm1'],
     'indexed_metadata' => ['im' => 'im1'],
-    'searchable_metadata' => ['s' => 'nobita']
+    'searchable_metadata' => ['s' => 'nobita'],
 ], [
-    'uuid' => ['id' => "3", 'type' => 'element'],
+    'uuid' => ['id' => '3', 'type' => 'element'],
     'metadata' => ['m' => 'm2'],
     'indexed_metadata' => ['im' => 'im2'],
-    'searchable_metadata' => ['s' => 'suneo']
+    'searchable_metadata' => ['s' => 'suneo'],
 ]]);
 $client->flush();
 sleep(1);
@@ -74,7 +85,7 @@ $result = $client->query(['q' => 'nobita']);
 assertEquals(2, $result['total_hits']);
 assertEquals(3, $result['total_items']);
 
-$client->deleteItem(['id' => "2", 'type' => 'element']);
+$client->deleteItem(['id' => '2', 'type' => 'element']);
 $client->flush();
 sleep(1);
 
@@ -82,14 +93,12 @@ $result = $client->query(['q' => 'nobita']);
 assertEquals(1, $result['total_hits']);
 assertEquals(2, $result['total_items']);
 
-
 $client->deleteItems([
-    ['id' => "3", 'type' => 'element'],
-    ['id' => "2", 'type' => 'element'],
+    ['id' => '3', 'type' => 'element'],
+    ['id' => '2', 'type' => 'element'],
 ]);
 $client->flush();
 sleep(1);
-
 
 $result = $client->query(['q' => 'nobita']);
 assertEquals(1, $result['total_hits']);

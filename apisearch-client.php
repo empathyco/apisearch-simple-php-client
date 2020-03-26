@@ -1,7 +1,7 @@
 <?php
 
 /*
- * This file is part of the Apisearch Simple PHP Client.
+ * This file is part of the Apisearch Server
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
@@ -9,7 +9,6 @@
  * Feel free to edit as you please, and have fun.
  *
  * @author Marc Morera <yuhu@mmoreram.com>
- * @author PuntMig Technologies
  */
 
 /**
@@ -103,8 +102,8 @@ class ApisearchClient
      */
     private function resetCachedElements()
     {
-        $this->elementstoPut = array();
-        $this->elementsToDelete = array();
+        $this->elementstoPut = [];
+        $this->elementsToDelete = [];
     }
 
     /**
@@ -126,7 +125,7 @@ class ApisearchClient
     }
 
     /**
-     * Reset index
+     * Reset index.
      *
      * @throws Exception
      */
@@ -139,7 +138,7 @@ class ApisearchClient
     }
 
     /**
-     * Put item
+     * Put item.
      *
      * @param array $item
      */
@@ -223,11 +222,11 @@ class ApisearchClient
                     break;
                 }
 
-                $this->flushItems($items, array());
+                $this->flushItems($items, []);
                 $offset += $bulkNumber;
             }
 
-            $this->flushItems(array(), $this->elementsToDelete);
+            $this->flushItems([], $this->elementsToDelete);
         } catch (Exception $exception) {
             /*
              * No matter the exception is thrown, cached elements should be
@@ -291,7 +290,7 @@ class ApisearchClient
      *
      * @param string $endpoint
      * @param string $method
-     * @param array $parameters
+     * @param array  $parameters
      * @param array  $body
      *
      * @return string
@@ -301,18 +300,18 @@ class ApisearchClient
     private function get(
         $endpoint,
         $method,
-        array $parameters = array(),
-        array $body = array()
+        array $parameters = [],
+        array $body = []
     ) {
-        $endpoint = str_replace(array(
+        $endpoint = str_replace([
             '{{app_uuid}}',
             '{{index_uuid}}',
             '{{token_uuid}}',
-        ), array(
+        ], [
             $this->appUUID,
             $this->indexUUID,
-            $this->tokenUUID
-        ), $endpoint);
+            $this->tokenUUID,
+        ], $endpoint);
 
         $url = sprintf('%s/%s/%s?token=%s',
             rtrim($this->host, '/'),
@@ -326,19 +325,19 @@ class ApisearchClient
             $url .= "&$parameterKey=$parameterValue";
         }
 
-        if ($method !== 'get') {
+        if ('get' !== $method) {
             $data = json_encode($body);
-            $context = stream_context_create(array(
-                'http' => array(
+            $context = stream_context_create([
+                'http' => [
                     'method' => $method,
                     'ignore_errors' => true,
-                    'header' => "Content-type: application/json\r\n" .
-                        "Accept: application/json\r\n" .
-                        "Connection: close\r\n" .
-                        "Content-length: " . strlen($data) . "\r\n",
+                    'header' => "Content-type: application/json\r\n".
+                        "Accept: application/json\r\n".
+                        "Connection: close\r\n".
+                        'Content-length: '.strlen($data)."\r\n",
                     'content' => $data,
-                )
-            ));
+                ],
+            ]);
 
             $data = file_get_contents($url, false, $context);
         } else {
@@ -347,7 +346,7 @@ class ApisearchClient
 
         $code = $this->parseResponseStatusCode($http_response_header['0']);
 
-        if (substr($code, 0, 1) !== '2') {
+        if ('2' !== substr($code, 0, 1)) {
             throw new Exception($data, $code);
         }
 
