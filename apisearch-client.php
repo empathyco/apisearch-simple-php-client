@@ -12,6 +12,9 @@
  * @author PuntMig Technologies
  */
 
+/**
+ * Class ApisearchClient
+ */
 class ApisearchClient
 {
     /**
@@ -19,7 +22,7 @@ class ApisearchClient
      *
      * Elements to update
      */
-    private $elementsToUpdate;
+    private $elementstoPut;
 
     /**
      * @var array
@@ -47,37 +50,37 @@ class ApisearchClient
      *
      * App id
      */
-    private $appId;
+    private $appUUID;
 
     /**
      * @var string
      *
      * Index id
      */
-    private $indexId;
+    private $indexUUID;
 
     /**
      * @var string
      *
      * Token
      */
-    private $token;
+    private $tokenUUID;
 
     /**
      * Set credentials.
      *
-     * @param string $appId
-     * @param string $indexId
-     * @param string $token
+     * @param string $appUUID
+     * @param string $indexUUID
+     * @param string $tokenUUID
      */
     public function setCredentials(
-        $appId,
-        $indexId,
-        $token
+        $appUUID,
+        $indexUUID,
+        $tokenUUID
     ) {
-        $this->appId = $appId;
-        $this->indexId = $indexId;
-        $this->token = $token;
+        $this->appUUID = $appUUID;
+        $this->indexUUID = $indexUUID;
+        $this->tokenUUID = $tokenUUID;
     }
 
     /**
@@ -100,7 +103,7 @@ class ApisearchClient
      */
     private function resetCachedElements()
     {
-        $this->elementsToUpdate = array();
+        $this->elementstoPut = array();
         $this->elementsToDelete = array();
     }
 
@@ -116,76 +119,35 @@ class ApisearchClient
     public function query(array $query)
     {
         return $this->get(
-            '/',
+            '/{{app_uuid}}',
             'get',
-            array(
-                'query' => json_encode($query),
-            )
+            ['query' => json_encode($query)]
         );
     }
 
     /**
-     * Reset the index.
+     * Reset index
      *
      * @throws Exception
      */
     public function resetIndex()
     {
         $this->get(
-            '/index/reset',
-            'post',
-            array()
+            '/{{app_uuid}}/indices/{{index_uuid}}/reset',
+            'POST'
         );
     }
 
     /**
-     * Checks the index.
-     *
-     * @return bool
-     */
-    public function checkIndex()
-    {
-        try {
-            $this->get(
-                '/index',
-                'head',
-                array()
-            );
-        } catch (Exception $exception) {
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * Config the index.
-     *
-     * @param array $config
-     *
-     * @throws Exception
-     */
-    public function configureIndex(array $config)
-    {
-        $this->get(
-            '/index/config',
-            'post',
-            array(
-                'config' => json_encode($config),
-            )
-        );
-    }
-
-    /**
-     * Generate item document.
+     * Put item
      *
      * @param array $item
      */
-    public function addItem(array $item)
+    public function putItem(array $item)
     {
         $itemUUID = $this->composeUUID($item['uuid']);
 
-        $this->elementsToUpdate[$itemUUID] = $item;
+        $this->elementstoPut[$itemUUID] = $item;
         unset($this->elementsToDelete[$itemUUID]);
     }
 
@@ -194,10 +156,10 @@ class ApisearchClient
      *
      * @param array[] $items
      */
-    public function addItems(array $items)
+    public function putItems(array $items)
     {
         foreach ($items as $item) {
-            $this->addItem($item);
+            $this->putItem($item);
         }
     }
 
@@ -222,7 +184,7 @@ class ApisearchClient
     {
         $itemUUID = $this->composeUUID($uuid);
         $this->elementsToDelete[$itemUUID] = $uuid;
-        unset($this->elementsToUpdate[$itemUUID]);
+        unset($this->elementstoPut[$itemUUID]);
     }
 
     /**
@@ -242,7 +204,7 @@ class ApisearchClient
     ) {
         if (
             $skipIfLess &&
-            count($this->elementsToUpdate) < $bulkNumber
+            count($this->elementstoPut) < $bulkNumber
         ) {
             return;
         }
@@ -252,7 +214,7 @@ class ApisearchClient
         try {
             while (true) {
                 $items = array_slice(
-                    $this->elementsToUpdate,
+                    $this->elementstoPut,
                     $offset,
                     $bulkNumber
                 );
@@ -282,34 +244,32 @@ class ApisearchClient
     /**
      * Flush items.
      *
-     * @param array[] $itemsToUpdate
+     * @param array[] $itemstoPut
      * @param array[] $itemsToDelete
      *
      * @throws Exception
      */
     private function flushItems(
-        array $itemsToUpdate,
+        array $itemstoPut,
         array $itemsToDelete
     ) {
-        if (!empty($itemsToUpdate)) {
+        if (!empty($itemstoPut)) {
             $this
                 ->get(
-                    '/items',
-                    'post',
-                    array(
-                        'items' => json_encode($itemsToUpdate),
-                    )
+                    '/{{app_uuid}}/indices/{{index_uuid}}/items',
+                    'put',
+                    [],
+                    array_values($itemstoPut)
                 );
         }
 
         if (!empty($itemsToDelete)) {
             $this
                 ->get(
-                    '/items',
+                    '/{{app_uuid}}/indices/{{index_uuid}}/items',
                     'delete',
-                    array(
-                        'items' => json_encode($itemsToDelete),
-                    )
+                    [],
+                    array_values($itemsToDelete)
                 );
         }
     }
@@ -331,6 +291,7 @@ class ApisearchClient
      *
      * @param string $endpoint
      * @param string $method
+     * @param array $parameters
      * @param array  $body
      *
      * @return string
@@ -340,32 +301,57 @@ class ApisearchClient
     private function get(
         $endpoint,
         $method,
-        array $body
+        array $parameters = array(),
+        array $body = array()
     ) {
-        $opts = array('http' => array(
-                'method' => $method,
-                'ignore_errors' => true,
-                'header' => 'Content-type: application/x-www-form-urlencoded',
-                'content' => http_build_query($body),
-            ),
-        );
-        $context = stream_context_create($opts);
-        $url = sprintf('%s/%s/%s?app_id=%s&index=%s&token=%s',
+        $endpoint = str_replace(array(
+            '{{app_uuid}}',
+            '{{index_uuid}}',
+            '{{token_uuid}}',
+        ), array(
+            $this->appUUID,
+            $this->indexUUID,
+            $this->tokenUUID
+        ), $endpoint);
+
+        $url = sprintf('%s/%s/%s?token=%s',
             rtrim($this->host, '/'),
             trim($this->version, '/'),
             ltrim($endpoint, '/'),
-            $this->appId,
-            $this->indexId,
-            $this->token
+            $this->tokenUUID
         );
-        $data = file_get_contents($url, false, $context);
+
+        $parameters = array_map('urlencode', $parameters);
+        foreach ($parameters as $parameterKey => $parameterValue) {
+            $url .= "&$parameterKey=$parameterValue";
+        }
+
+        if ($method !== 'get') {
+            $data = json_encode($body);
+            $context = stream_context_create(array(
+                'http' => array(
+                    'method' => $method,
+                    'ignore_errors' => true,
+                    'header' => "Content-type: application/json\r\n" .
+                        "Accept: application/json\r\n" .
+                        "Connection: close\r\n" .
+                        "Content-length: " . strlen($data) . "\r\n",
+                    'content' => $data,
+                )
+            ));
+
+            $data = file_get_contents($url, false, $context);
+        } else {
+            $data = file_get_contents($url);
+        }
+
         $code = $this->parseResponseStatusCode($http_response_header['0']);
 
-        if (200 !== $code) {
+        if (substr($code, 0, 1) !== '2') {
             throw new Exception($data, $code);
         }
 
-        return $data;
+        return json_decode($data, true);
     }
 
     /**
